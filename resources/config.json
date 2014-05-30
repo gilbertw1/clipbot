@@ -1,0 +1,17 @@
+{
+    "bots": [{
+        "id": "clipbot",
+        "connection": {
+            "type": "hipchat",
+            "conf": {
+                "user": "...",
+                "pass": "...",
+                "rooms": [{
+                    "id": "...",
+                    "nick": "Clippard Botworth"
+                }]           
+            }
+        },
+        "plugins": []
+    }]
+}
