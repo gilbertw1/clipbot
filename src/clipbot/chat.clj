@@ -84,3 +84,7 @@
     "hipchat" (connect-hipchat conf handler)
     "irc" (connect-irc conf handler)
     :else (throw (Exception. "Unknown chat type"))))
+
+(defn connect-bot [bot]
+  (println "Connecting Bot: " bot)
+  (assoc bot :conn (connect (:conn-conf bot) (:handler bot))))
