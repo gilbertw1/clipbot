@@ -11,9 +11,8 @@
                  [net.java.dev.rome/rome "1.0.0"]
                  [clj-http "0.7.4"],
                  [cheshire "5.2.0"],
-                 [org.clojure/core.match "0.2.0-rc2"]
+                 [org.clojure/core.match "0.2.1"]
                  [compojure "1.1.5"]
                  [http-kit "2.1.16"]
-                 ;[org.thnetos/cd-client "0.3.6-SNAPSHOT"]
                  [clojail "1.0.6"]
                  [tentacles "0.2.5"]])

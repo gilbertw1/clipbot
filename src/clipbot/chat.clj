@@ -1,4 +1,5 @@
 (ns clipbot.chat
+  (:require [clojure.string :as str])
   (:import
    [org.jivesoftware.smack ConnectionConfiguration XMPPConnection XMPPException PacketListener]
    [org.jivesoftware.smack.packet Message Presence Presence$Type]
@@ -25,7 +26,7 @@
 (defn- message->map [#^Message m]
   (try
     {:msg (.getBody m)
-     :user (.getFrom m)}
+     :user (-> m (.getFrom) (str/split #"/") second)}
     (catch Exception e (println e) {})))
 
 (defn- with-message-map [handler]
