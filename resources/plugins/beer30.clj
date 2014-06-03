@@ -17,7 +17,7 @@
         (= status "STOP") (str "beer30 is red :( (" reason ")")
         (= status "GO") (str "beer30 is green :) (" reason ")")
         :else "unknown beer30 status"))
-    (catch Exception e "beer 30 is down :(")))
+    (catch Exception e "beer30 is down :(")))
 
 (plugin/register-plugin
   {:id "beer30"
