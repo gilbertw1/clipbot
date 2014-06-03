@@ -1,16 +1,15 @@
 (ns clipbot.plugins.beer30
   (:require [clipbot.plugin :as plugin]
             [cheshire.core :as json]
-            [clj-http.client :as client]))
+            [clj-http.client :as http]))
 
 (def beer30-status-url "https://beer30.sparcedge.com/status")
 
 (defn get-beer30-status []
   (try
-    (let [res (client/get beer30-status-url)
-          resjs (json/parse-string (:body res) true)
-          status (:statusType resjs)
-          reason (:reason resjs)]
+    (let [res (-> beer30-status-url (http/get) :body (json/parse-string true))
+          status (:statusType res)
+          reason (:reason res)]
       (println "Beer30 Status: " status)
       (println "Beer30 Reason: " reason)
       (cond

@@ -20,14 +20,12 @@
 
 (reset! questions (load-trivia-questions))
 
-(defn print-q [{:keys [q a]}]
-  (println "Q: " q ", A: " a))
-
 (defn new-question []
   (rand-nth @questions))
 
 (defn has-answer? [msg]
-  (re-seq (->> @game :curr :a (str "(?i)") re-pattern) msg))
+  (when-let [answer (-> @game :curr :a)]
+    (re-seq (->> answer (str "(?i)") re-pattern) msg)))
 
 (defn inc-score [g user]
   (if (-> g :players (get user))
@@ -41,7 +39,6 @@
 
 (defn set-new-game-question [responder]
   (swap! game assoc :curr (new-question))
-  (print-q (-> @game :curr))
   (when responder
     (responder "**** New Question *****")
     (responder (-> @game :curr :q))))
@@ -60,8 +57,7 @@
     (set-new-game-question responder)))
 
 (defn respond-with-scores [responder]
-  (responder "Trivia Scores")
-  (responder "-------------")
+  (responder "Trivia Scores\n-------------")
   (doseq [[user score] (:players @game)]
     (responder (str user ": " score))))
 
@@ -69,7 +65,6 @@
   (->> msg (re-seq #"\$trivia\s+(\w+)") first second))
 
 (defn handle-command [cmd responder]
-  (println "Trivia Command: " cmd)
   (condp = (str/lower-case cmd)
     "new" (start-new-game responder)
     "scores" (respond-with-scores responder)))
@@ -78,7 +73,6 @@
   {:id "trivia"
    :handlers [{:regex #"\$trivia\s+(\w+)"
                :function (fn [responder user msg]
-                           (println "Trivia Match - " msg)
                            (handle-command (extract-command msg) responder))}
               {:regex #".*"
                :function (fn [responder user msg]
