@@ -3,6 +3,7 @@
   :url "http://bryangilbert.com"
   :main clipbot.core
   :plugins [[lein-ring "0.8.6"]]
+  :resource-paths ["resources"]
   :license {:name "Eclipse Public License"
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.5.1"]

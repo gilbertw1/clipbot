@@ -15,7 +15,7 @@
   (json/parse-string (slurp (or file resource-conf)) true))
 
 (defn read-plugin-files []
-  (map slurp (->> (io/resource "plugins") io/file file-seq (filter #(not (.isDirectory %))))))
+  (map slurp (->> "plugins" io/resource io/file file-seq (filter #(not (.isDirectory %))))))
 
 (defn load-plugins []
   (doseq [plugin (read-plugin-files)]
