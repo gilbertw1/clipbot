@@ -25,12 +25,15 @@
   (GET "/" [] "I am the clipbot, goo goo g'joob")
   (route/not-found "not found"))
 
-(defn start [conf-file]
+(defn start [conf]
   (load-plugins)
-  (let [{bot-confs :bots} (read-conf conf-file)
+  (let [{server-port :server-port} conf
+        {bot-confs :bots} conf
         bots (map #(bot/create % @plugin/plugins) bot-confs)
         connected-bots (doall (map chat/connect-bot bots))]
-    (httpkit/run-server app-routes {:port 8080})))
+    (println (str "Running on port: " server-port))
+    (httpkit/run-server app-routes {:port server-port})))
 
 (defn -main [& [conf-file & args]]
-  (def app (start conf-file)))
+  (let [conf (read-conf conf-file)]
+    (def app (start conf))))
