@@ -67,7 +67,8 @@
 (defn handle-command [cmd responder]
   (condp = (str/lower-case cmd)
     "new" (start-new-game responder)
-    "scores" (respond-with-scores responder)))
+    "scores" (respond-with-scores responder)
+    "skip" (set-new-game-question responder)))
 
 (plugin/register-plugin
   {:id "trivia"
