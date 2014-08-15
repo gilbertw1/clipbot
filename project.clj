@@ -16,4 +16,5 @@
                  [compojure "1.1.5"]
                  [http-kit "2.1.16"]
                  [clojail "1.0.6"]
-                 [tentacles "0.2.5"]])
+                 [tentacles "0.2.5"]
+                 [pandect "0.3.4"]])
