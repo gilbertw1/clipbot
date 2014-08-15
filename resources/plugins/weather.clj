@@ -1,6 +1,5 @@
 (ns clipbot.plugins.weather
   (:require [clipbot.plugin :as plugin]
-            [cheshire.core :as json]
             [clj-http.client :as http]))
 
 (def fing-weather-url "http://thefuckingweather.com/")
