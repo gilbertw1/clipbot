@@ -61,6 +61,10 @@
   (doseq [[user score] (:players @game)]
     (responder (str user ": " score))))
 
+(defn repeat-current-question [responder]
+  (responder "**** Current Question ****")
+  (responder (-> @game :curr :q)))
+
 (defn extract-command [msg]
   (->> msg (re-seq #"\$trivia\s+(\w+)") first second))
 
@@ -68,7 +72,8 @@
   (condp = (str/lower-case cmd)
     "new" (start-new-game responder)
     "scores" (respond-with-scores responder)
-    "skip" (set-new-game-question responder)))
+    "skip" (set-new-game-question responder)
+    "repeat" (repeat-current-question responder)))
 
 (plugin/register-plugin
   {:id "trivia"
