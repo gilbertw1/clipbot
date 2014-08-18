@@ -40,8 +40,11 @@
 (defn set-new-game-question [responder]
   (swap! game assoc :curr (new-question))
   (when responder
-    (responder "**** New Question *****")
-    (responder (-> @game :curr :q))))
+    (responder (str "**** New Question ****\n" (-> @game :curr :q)))))
+
+(defn skip-current-question [responder]
+  (responder (str "**** Answer to Preview Question ****\n" (-> @game :curr :a)))
+  (set-new-game-question responder))
 
 (defn clear-game []
   (reset! game {:curr (new-question) :players {}}))
@@ -62,8 +65,8 @@
     (responder (str user ": " score))))
 
 (defn repeat-current-question [responder]
-  (responder "**** Current Question ****")
-  (responder (-> @game :curr :q)))
+  (let [reply (str "**** Current Question ****\n" (-> @game :curr :q))]
+    (responder reply)))
 
 (defn extract-command [msg]
   (->> msg (re-seq #"\$trivia\s+(\w+)") first second))
@@ -72,7 +75,7 @@
   (condp = (str/lower-case cmd)
     "new" (start-new-game responder)
     "scores" (respond-with-scores responder)
-    "skip" (set-new-game-question responder)
+    "skip" (skip-current-question responder)
     "repeat" (repeat-current-question responder)))
 
 (plugin/register-plugin
