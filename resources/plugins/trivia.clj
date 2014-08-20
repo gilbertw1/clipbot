@@ -43,7 +43,7 @@
     (responder (str "**** New Question ****\n" (-> @game :curr :q)))))
 
 (defn skip-current-question [responder]
-  (responder (str "**** Answer to Preview Question ****\n" (-> @game :curr :a)))
+  (responder (str "**** Answer to Previous Question ****\n" (-> @game :curr :a)))
   (set-new-game-question responder))
 
 (defn clear-game []
