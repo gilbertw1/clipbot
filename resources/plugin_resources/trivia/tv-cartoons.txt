@@ -37,7 +37,7 @@ TV-Cartoons: In the Disney film Aladdin, who did the voice for the character of 
 TV-Cartoons: In 1928 who registered Mickey Mouse as a trademark?*Walt Disney
 TV-Cartoons: The Whale's name in Disney's Pinocchio is what?*Monstro
 TV-Cartoons: In Basil, The great Mouse Detective, what kind of creature is Fidget?*A Bat
-TV-Cartoons: What is the hound named in Disney's The Fox and The Hound?UCopper
+TV-Cartoons: What is the hound named in Disney's The Fox and The Hound?*Copper
 TV-Cartoons: In Bambi, what word is used to describe animals in love?*Twitterpated
 TV-Cartoons: According to Walt, what Hollywood movie star was his inspiration for the witch in Snow White and the Seven Dwarfs?*Joan Crawford
 TV-Cartoons: When Lady and the Tramp dine together, what is the romantic song playing?*Bella Notte

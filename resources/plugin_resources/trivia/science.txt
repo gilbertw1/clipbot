@@ -25,8 +25,8 @@ Science: What's defined as the distance between a lens and its focal point?*Foca
 Science: What energy unit is defined as the heat required to raise one kilogram of water by one degree Celsius?*One Calorie
 Science: What founding father was knocked unconscious while attempting to electrocute a turkey?*Benjamin Franklin
 Science: What continent is subjected to the world's largest ozone hole?*Antarctica
-Science: What sea creature can have an eye measuring 16 inches across, the largest in the animal kingdom?*A squid
-Science: What explosive cosmic event was seen with the naked eye in 1987, for the first time in 383 years?*A supernova
+Science: What sea creature can have an eye measuring 16 inches across, the largest in the animal kingdom?*Squid
+Science: What explosive cosmic event was seen with the naked eye in 1987, for the first time in 383 years?*Supernova
 Science: What three terms are represented in Newton's second law of motion F = ma?*Force, mass, acceleration
 Science: How many of the nine planets have moons?*Seven
 Science: What were exterminated from Harvard's bio labs when they were found to be carrying radioactive chemicals into the walls?*Ants
