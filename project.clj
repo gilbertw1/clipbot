@@ -17,4 +17,6 @@
                  [http-kit "2.1.16"]
                  [clojail "1.0.6"]
                  [tentacles "0.2.5"]
-                 [pandect "0.3.4"]])
+                 [pandect "0.3.4"]
+                 [hiccup "1.0.5"]
+                 [ring-basic-authentication "1.0.5"]])

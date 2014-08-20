@@ -60,9 +60,9 @@
     (set-new-game-question responder)))
 
 (defn respond-with-scores [responder]
-  (responder "Trivia Scores\n-------------")
-  (doseq [[user score] (:players @game)]
-    (responder (str user ": " score))))
+  (str
+    "Trivia Scores\n-------------\n"
+    (str/join "\n" (map (fn [[u s]] (str u ": " s) (:players @game))))))
 
 (defn repeat-current-question [responder]
   (let [reply (str "**** Current Question ****\n" (-> @game :curr :q))]
