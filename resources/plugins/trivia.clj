@@ -68,6 +68,12 @@
   (let [reply (str "**** Current Question ****\n" (-> @game :curr :q))]
     (responder reply)))
 
+(defn give-question-hint [responder]
+  (let [answer (-> @game :curr :a)]
+    (-> answer
+      (str/replace  #"[aeiouAEIOU\s]" "")
+      responder)))
+
 (defn extract-command [msg]
   (->> msg (re-seq #"\$trivia\s+(\w+)") first second))
 
@@ -76,7 +82,8 @@
     "new" (start-new-game responder)
     "scores" (respond-with-scores responder)
     "skip" (skip-current-question responder)
-    "repeat" (repeat-current-question responder)))
+    "repeat" (repeat-current-question responder) 
+    "hint" (give-question-hint responder)))
 
 (plugin/register-plugin
   {:id "trivia"
