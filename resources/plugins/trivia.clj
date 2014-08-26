@@ -71,7 +71,7 @@
 (defn give-question-hint [responder]
   (let [answer (-> @game :curr :a)]
     (-> answer
-      (str/replace  #"[aeiouAEIOU13579\s]" "")
+      (str/replace  #"[aeiouAEIOU13579\s]" "*")
       responder)))
 
 (defn extract-command [msg]
