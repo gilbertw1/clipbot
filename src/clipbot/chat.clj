@@ -29,11 +29,16 @@
      :user (-> m (.getFrom) (str/split #"/") second)}
     (catch Exception e (println e) {})))
 
-(defn- with-message-map [handler]
+(defn- with-message-map [room-id subject handler]
   (fn [muc packet]
-    (let [message (message->map #^Message packet)]
+    (let [message0 (message->map #^Message packet)
+          message (-> message0
+                      (assoc :room-id room-id) 
+                      (assoc :respond #(.sendMessage muc %))   
+                      (assoc :emit-event #(.onNext subject %)))]
       (try
        (handler muc message)
+       (.onNext subject message)
        (catch Exception e (println e))))))
 
 (defn- wrap-handler [handler]
@@ -46,12 +51,12 @@
     (processPacket [_ packet]
       (processor conn packet))))
 
-(defn- join-hipchat-room [conn room handler]  
+(defn- join-hipchat-room [conn room subject handler]  
   (let [{:keys [id nick]} room        
         muc (MultiUserChat. conn (str id "@conf.hipchat.com"))]
     (println "Joining room: " id " with nick: " nick)
     (.join muc nick)
-    (.addMessageListener muc (packet-listener muc (with-message-map (wrap-handler handler))))
+    (.addMessageListener muc (packet-listener muc (with-message-map id subject (wrap-handler handler))))
     (assoc room :conn muc)))
 
 (defn- initialize-xmpp-connection [conn user pass]
@@ -65,27 +70,27 @@
 (defn- send-hipchat-message [conn channel msg]
   (-> channel :conn (.sendMessage msg)))
 
-(defn- connect-hipchat [{:keys [user pass rooms]} handler]
+(defn- connect-hipchat [{:keys [user pass rooms]} subject handler]
   (let [conn (XMPPConnection. (ConnectionConfiguration. "chat.hipchat.com" 5222))]
     (initialize-xmpp-connection conn user pass)
-    (let [connected-channels (map #(join-hipchat-room conn % handler) rooms)]
+    (let [connected-channels (map #(join-hipchat-room conn % subject handler) rooms)]
       (HipChat-Connection. conn (group-by :id connected-channels) user handler))))
-
 
 ;; IRC
 
 (defn- connect-irc [conf handler]
   (throw (Exception. "IRC chat not implemented.")))
 
-
 ;; Public
 
-(defn connect [{:keys [type conf]} handler]
+(defn connect [{:keys [type conf]} subject handler]
   (condp = type
-    "hipchat" (connect-hipchat conf handler)
+    "hipchat" (connect-hipchat conf subject handler)
     "irc" (connect-irc conf handler)
     :else (throw (Exception. "Unknown chat type"))))
 
 (defn connect-bot [bot]
   (println "Connecting Bot: " bot)
-  (assoc bot :conn (connect (:conn-conf bot) (:handler bot))))
+  (assoc bot :conn (connect (:conn-conf bot)
+                            (:subject bot)
+                            (:handler bot))))

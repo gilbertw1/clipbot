@@ -11,7 +11,9 @@
             [compojure.route :as route]
             [ring.middleware.basic-authentication :refer [wrap-basic-authentication]]
             [compojure.handler :refer [site]]
-            [hiccup.core :refer [html]]))
+            [hiccup.core :refer [html]])
+  (:import [rx.subjects PublishSubject])
+  )
 
 (def resource-conf (-> "config.json" io/resource))
 
@@ -25,7 +27,7 @@
   (json/parse-string (slurp (or file resource-conf)) true))
 
 (defn read-plugin-files []
-  (map slurp (->> "plugins" io/resource io/file file-seq (filter #(not (.isDirectory %))))))
+  (map slurp (->> "plugins/clipbot/plugins" io/resource io/file file-seq (filter #(not (.isDirectory %))))))
 
 (defn load-plugins []
   (doseq [plugin (read-plugin-files)]
@@ -91,16 +93,17 @@
   (GET "/admin/send/:botid" [botid msg rooms] (send-chat-view (find-bot botid) (str/split rooms #",") (java.net.URLDecoder/decode msg)))
   (route/not-found "not found"))
 
-(defn start [conf]
+(defn start [subject conf]
   (load-plugins)
   (let [{server-port :server-port} conf
         {bot-confs :bots} conf
-        bots (map #(bot/create % @plugin/plugins) bot-confs)
+        bots (map #(bot/create % subject @plugin/plugins) bot-confs)
         connected-bots (doall (map chat/connect-bot bots))]
     (println (str "Running on port: " server-port))
     (reset! chat-bots connected-bots)
     (httpkit/run-server (site app-routes) {:port server-port})))
 
 (defn -main [& [conf-file & args]]
-  (let [conf (read-conf conf-file)]
-    (def app (start conf))))
+  (let [conf (read-conf conf-file)
+        subject (PublishSubject/create)]
+    (def app (start subject conf))))
