@@ -19,4 +19,5 @@
   {:id "weather"
    :regex #"\$weather\s+(.*)"
    :function (fn [responder user msg]
+               (responder "Let me get that for ya")
                (-> msg (match #"\$weather\s+(.*)") get-weather responder))})
