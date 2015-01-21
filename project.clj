@@ -8,6 +8,11 @@
             :url "http://www.eclipse.org/legal/epl-v10.html"}
   :dependencies [[org.clojure/clojure "1.6.0"]
                  [io.reactivex/rxclojure "1.0.0"]
+
+                 ;; TODO: move dependencies to a different
+                 ;; unbounce-clipbot project
+                 [jenko "0.2.0" :exclusions [org.clojure/clojure]]
+                 
                  [jivesoftware/smack "3.1.0"]
                  [jivesoftware/smackx "3.1.0"]
                  [net.java.dev.rome/rome "1.0.0"]
@@ -17,7 +22,6 @@
                  [compojure "1.1.5"]
                  [http-kit "2.1.16"]
                  [clojail "1.0.6"]
-                 [jenko "0.2.0" :exclusions [org.clojure/clojure]]
                  [tentacles "0.2.5"]
                  [pandect "0.3.4"]
                  [hiccup "1.0.5"]

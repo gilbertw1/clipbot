@@ -23,11 +23,23 @@
           (future
             (function responder user msg)))))))
 
+(defn- filter-messages-by-regex [regex]
+  (fn [{:keys [msg]}]
+    (not (nil? (re-seq regex msg)))))
+
+(defn- add-category-from-msg [regex category-name]
+  (fn [{:keys [category msg] :as ev}]
+    (if (and (not category)
+             (re-seq regex msg)) 
+      (assoc ev :category category-name)
+      ev)))
+
 (defn- create-subscription [subject plugins]
   (let [bot-subscription (CompositeSubscription.)]
-    (doseq [{:keys [regex init]} plugins
-            :let [observable subject ;; (rx/filter #(re-seq regex %) subject)
-                  ]]
+    (doseq [{:keys [regex id init]} plugins
+            :let [observable (->> subject
+                                  (rx/map (add-category-from-msg regex id))
+                                  (rx/filter #(= (:category %) id)))]]
       (when init
         (let [subscription (init observable)]
           (.add bot-subscription subscription))))

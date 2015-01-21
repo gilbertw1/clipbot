@@ -32,10 +32,10 @@
 (defn- with-message-map [room-id subject handler]
   (fn [muc packet]
     (let [message0 (message->map #^Message packet)
-          message (-> message0
-                      (assoc :room-id room-id) 
-                      (assoc :respond #(.sendMessage muc %))   
-                      (assoc :emit-event #(.onNext subject %)))]
+          message (merge message0 {:room-id room-id
+                                   :type :chat
+                                   :respond #(.sendMessage muc %)
+                                   :emit-event #(.onNext subject %)})]
       (try
        (handler muc message)
        (.onNext subject message)

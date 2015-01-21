@@ -54,8 +54,22 @@
              (for [{:keys [name description]} jenkins-tasks]
                (str name " - " description)))))
 
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;; jenkins parsers
+
+(defn chat-message-parser [{:keys [emit-event msg] :as ev}]
+  (let [[action & args] (str/split (->> msg (re-seq #"^@jenkins\s+(.*?)\s*$") first second)
+                                   #"\s+") ]
+    (condp = action
+      "package" (emit-event (merge ev {:type :package
+                                       :job-name (first args)}))
+      "list"    (emit-event (merge ev {:type :list-jobs})))))
+
+
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; jenkins-bot implementation
+
 
 (defmulti jenkins-bot
   (fn jenkins-bot-dispatcher [_ _ msg]
@@ -78,12 +92,15 @@
   (display-help responder))
 
 (defn init-jenkins-bot [subscribe observable]
-  (let [goodbye-observable (rx/filter #(re-seq #"goodbye" (:msg %)) observable)]
+  (let [chat-messages (rx/filter #(= (:type %) :chat) observable)
+        goodbye-observable (rx/filter #(re-seq #"goodbye" (:msg %)) observable)]
 
     ;; say goodbye to people
     (subscribe goodbye-observable
                (fn say-goodbye [{:keys [respond user]}]
                  (respond (str "Goodbye " (first (str/split user #" "))))))
+
+    (subscribe chat-messages chat-message-parser)
 
     ;; print everything you receive
     (subscribe observable #(println %))))
