@@ -1,9 +1,15 @@
 (ns clipbot.chat
-  (:require [clojure.string :as str])
+  (:require
+   [clojure.string :as str]
+   [rx.lang.clojure.core :as rx]
+   [rx.lang.clojure.interop :refer [action*]]
+   [clipbot.bot :as bot])
   (:import
    [org.jivesoftware.smack ConnectionConfiguration XMPPConnection XMPPException PacketListener]
    [org.jivesoftware.smack.packet Message Presence Presence$Type]
-   [org.jivesoftware.smackx.muc MultiUserChat]))
+   [org.jivesoftware.smackx.muc MultiUserChat]
+   [rx Subscription]
+   [rx.subscriptions Subscriptions CompositeSubscription]))
 
 (defprotocol Chat-Connection
   (send-message [this channel msg])
@@ -15,11 +21,21 @@
 (declare join-hipchat-room)
 
 (defrecord HipChat-Connection [conn channels username handler]
+  Subscription
+  (unsubscribe [_]
+    (println "call unsubscribe on Hipchat-Connection")
+    (.disconnect conn))
+  (isUnsubscribed [_]
+    (not (.isConnected conn)))
+
   Chat-Connection
-    (send-message [this channel-id msg] (send-hipchat-message conn (get channels channel-id) msg))
-    (join [this channel] (join-hipchat-room conn channel handler))
-    (list-channels [this] channels)
-    (quit [this] (println "Hipchat Quit Not Implemented!")))
+  (send-message [_ channel-id msg]
+    (send-hipchat-message conn (get channels channel-id) msg))
+  (join [_ channel]
+    (join-hipchat-room conn channel handler))
+  (list-channels [_] channels)
+  (quit [this]
+    (.unsubscribe this)))
 
 ;; HipChat
 
@@ -32,14 +48,20 @@
 (defn- with-message-map [room-id subject handler]
   (fn [muc packet]
     (let [message0 (message->map #^Message packet)
-          message (merge message0 {:room-id room-id
-                                   :type :chat
-                                   :respond #(.sendMessage muc %)
+          message (merge message0 {:type :receive-message
+                                   :category :chat
+                                   :room-id room-id
+                                   :send-message #(.onNext subject
+                                                           {:type :send-message
+                                                            :category :chat
+                                                            :msg %})
                                    :emit-event #(.onNext subject %)})]
       (try
        (handler muc message)
        (.onNext subject message)
-       (catch Exception e (println e))))))
+       (catch Exception e
+         (.onError subject e)
+         (println e))))))
 
 (defn- wrap-handler [handler]
   (fn [muc message]
@@ -51,13 +73,20 @@
     (processPacket [_ packet]
       (processor conn packet))))
 
-(defn- join-hipchat-room [conn room subject handler]  
-  (let [{:keys [id nick]} room        
+(defn- chat-send-msg? [msg]
+  (and (= (:type msg) :send-message)
+       (= (:category msg) :chat)))
+
+(defn- join-hipchat-room [conn room subject handler]
+  (let [{:keys [id nick]} room
         muc (MultiUserChat. conn (str id "@conf.hipchat.com"))]
     (println "Joining room: " id " with nick: " nick)
     (.join muc nick)
     (.addMessageListener muc (packet-listener muc (with-message-map id subject (wrap-handler handler))))
-    (assoc room :conn muc)))
+    (let [send-msg-disposable (rx/subscribe (rx/filter chat-send-msg? subject)
+                                            #(.sendMessage muc (:msg %)))]
+      (merge room {:conn muc
+                   :sender-disposable send-msg-disposable}))))
 
 (defn- initialize-xmpp-connection [conn user pass]
   (.connect conn)
@@ -94,3 +123,11 @@
   (assoc bot :conn (connect (:conn-conf bot)
                             (:subject bot)
                             (:handler bot))))
+
+(defn init-chat [bot-configs plugins subject]
+  (let [chat-subscription (CompositeSubscription.)
+        disconnected-bots (mapv #(bot/create % subject plugins) bot-configs)
+        connected-bots    (mapv connect-bot disconnected-bots)]
+    (doseq [bot connected-bots]
+      (.add chat-subscription bot))
+    chat-subscription))

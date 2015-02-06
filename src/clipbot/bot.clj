@@ -1,14 +1,33 @@
 (ns clipbot.bot
-  (:require [rx.lang.clojure.core :as rx])
-  (:import [rx.subscriptions Subscriptions CompositeSubscription]))
+  (:require
+   [rx.lang.clojure.core :as rx])
+  (:import
+   [rx Subscription]
+   [rx.subjects Subject]
+   [rx.subscriptions Subscriptions CompositeSubscription]))
 
-(defrecord Bot [id conn-conf conn plugins subject subscription handler])
+(defrecord Bot
+    [id
+     conn-conf
+     ^Subscription conn
+     plugins
+     ^Subject subject
+     ^Subscription subscription
+     handler]
+
+  Subscription
+  (unsubscribe [_]
+    (println "Calling unsubscribe on bot" id)
+    (.unsubscribe subscription)
+    (.unsubscribe conn))
+  (isUnsubscribed [_]
+    (and (.isUnsubscribed conn)
+         (.isUnsubscribed subscription))))
 
 (defn- get-handlers [plugin]
   (if-let [handlers (:handlers plugin)]
     handlers
     [plugin]))
-
 
 ;; In here, I would prefer to have a function in the plugin that receives
 ;; a filtered observable (by the regex), and returns a list of
@@ -29,8 +48,7 @@
 
 (defn- add-category-from-msg [regex category-name]
   (fn [{:keys [category msg] :as ev}]
-    (if (and (not category)
-             (re-seq regex msg)) 
+    (if (re-seq regex msg)
       (assoc ev :category category-name)
       ev)))
 
@@ -45,7 +63,7 @@
           (.add bot-subscription subscription))))
     bot-subscription))
 
-;; 
+;;
 (defn create [{:keys [id connection plugins]} subject available-plugins]
   (let [plugin-list (doall (map #(get available-plugins %) plugins))]
     (Bot. id
