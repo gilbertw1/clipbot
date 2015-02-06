@@ -46,18 +46,21 @@
   (fn [{:keys [msg]}]
     (not (nil? (re-seq regex msg)))))
 
-(defn- add-category-from-msg [regex category-name]
-  (fn [{:keys [category msg] :as ev}]
-    (if (re-seq regex msg)
+(defn- modify-category-from-chat-msg [regex category-name]
+  (fn [{:keys [category type msg] :as ev}]
+    (if (and (= category :chat)
+             (= type :receive-message)
+             (re-seq regex msg))
       (assoc ev :category category-name)
       ev)))
 
 (defn- create-subscription [subject plugins]
   (let [bot-subscription (CompositeSubscription.)]
     (doseq [{:keys [regex id init]} plugins
-            :let [observable (->> subject
-                                  (rx/map (add-category-from-msg regex id))
-                                  (rx/filter #(= (:category %) id)))]]
+            :let [id-kw (keyword id)
+                  observable (->> subject
+                                  (rx/map (modify-category-from-chat-msg regex id-kw))
+                                  (rx/filter #(= (:category %) id-kw)))]]
       (when init
         (let [subscription (init observable)]
           (.add bot-subscription subscription))))

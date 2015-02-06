@@ -116,20 +116,21 @@
              display-help-event))))
 
 
-(defn chat-message-parser [{:keys [send-event] :as ev}]
-  (send-event (parse-chat-message ev)))
+(defn chat-message-parser [{:keys [emit-event] :as ev}]
+  (let [ev1 (parse-chat-message ev)]
+    (emit-event ev1)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; jenkins tasks
 
 (defn status-jenkins-job [{:keys [send-message job-name] :as ev}]
-  (send-message (jenkins/last-build job-name)))
+  (send-message (str "check last build of " job-name)))
 
-(defn package-jenkins-job [ev]
-  (println ev))
+(defn package-jenkins-job [{:keys [send-message job-name] :as ev}]
+  (send-message (str "package jenkins job " job-name)))
 
-(defn list-jenkins-jobs [ev]
-  (println ev))
+(defn list-jenkins-jobs [{:keys [send-message]}]
+  (send-message (str "list all jobs")))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; jenkins-bot implementation
@@ -145,9 +146,10 @@
     (subscribe chat-message-events
                (fn echo-message [{:keys [send-message msg]}]
                  (send-message (str "echo: " msg))))
+
     (subscribe chat-message-events chat-message-parser)
     (subscribe status-job-events   status-jenkins-job)
-    ;; (subscribe package-job-events  package-jenkins-job)
+    (subscribe package-job-events  package-jenkins-job)
     ;; (subscribe list-jobs-events    list-jenkins-jobs)
     ))
 
