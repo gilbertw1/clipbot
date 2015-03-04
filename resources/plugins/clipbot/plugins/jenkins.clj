@@ -2,12 +2,12 @@
   (:require
    [clojure.string :as str]
    [rx.lang.clojure.core :as rx]
-   [clipbot.plugin :as plugin]
+
    [clj-http.client :as http]
    [clj-jenkins.job :as jenkins]
-   )
-  (:import [rx Observable]
-           [rx.subscriptions CompositeSubscription]))
+
+   [clipbot.plugin :as plugin]
+   [clipbot.types :refer :all]))
 
 ;; credentials come from env vars
 ;; - JENKINS_URL
@@ -58,28 +58,11 @@
 (def http-get-observable
   (to-observable http/get))
 
-(defn mk-subscribe [^CompositeSubscription subscription]
-  (fn ub-subsribe [& args]
-    (.add subscription (apply rx/subscribe args))))
-
-(defn init-bot [initializer]
-  (let [subscription (CompositeSubscription.)
-        subscribe (mk-subscribe subscription)]
-    (fn -init-bot [observable]
-      (initializer subscribe observable)
-      subscription)))
-
 (defn match [s rx]
   (->> s (re-seq rx) first second))
 
 (def get-task
   #(match % #"@jenkins\s+(.*)\s*"))
-
-;; global util fn
-(defn send-message-event [msg]
-  {:type :send-message
-   :category :chat
-   :msg msg})
 
 (defn- category-type [category type]
   (fn -filter-msg [msg]
@@ -90,18 +73,18 @@
 ;; jenkins parsers
 
 (def display-help-event
-  (send-message-event
+  (chat-message
     (str "Available commands for @jenkins\n"
          (str/join "\n"
               (for [{:keys [name description]} jenkins-tasks]
                 (str name " - " description))))))
 
 ;; this function can later be implemented with a zetta parser
-(defn parse-chat-message [{:keys [msg] :as ev}]
-  (let [[task-name & args] (str/split (->> msg (re-seq jenkins-regex) first second)
+(defn parse-chat-message [{:keys [payload] :as ev}]
+  (let [[task-name & args] (str/split (->> payload (re-seq jenkins-regex) first second)
                                    #"\s+") ]
     (merge ev
-           (cond
+          (cond
              (= task-name (:name PACKAGE))
              {:category :jenkins
               :type :package
@@ -116,21 +99,21 @@
              display-help-event))))
 
 
-(defn chat-message-parser [{:keys [emit-event] :as ev}]
+(defn chat-message-parser [{:keys [send-raw-event] :as ev}]
   (let [ev1 (parse-chat-message ev)]
-    (emit-event ev1)))
+    (send-raw-event ev1)))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; jenkins tasks
 
-(defn status-jenkins-job [{:keys [send-message job-name] :as ev}]
-  (send-message (str "check last build of " job-name)))
+(defn status-jenkins-job [{:keys [send-chat-message job-name] :as ev}]
+  (send-chat-message (str "check last build of " job-name)))
 
-(defn package-jenkins-job [{:keys [send-message job-name] :as ev}]
-  (send-message (str "package jenkins job " job-name)))
+(defn package-jenkins-job [{:keys [send-chat-message job-name] :as ev}]
+  (send-chat-message (str "package jenkins job " job-name)))
 
-(defn list-jenkins-jobs [{:keys [send-message]}]
-  (send-message (str "list all jobs")))
+(defn list-jenkins-jobs [{:keys [send-chat-message]}]
+  (send-chat-message "list all jobs"))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ;; jenkins-bot implementation
@@ -143,14 +126,15 @@
         list-jobs-events     (rx/filter (category-type :jenkins :list) observable)]
 
     ;; print everything you receive
-    (subscribe chat-message-events
-               (fn echo-message [{:keys [send-message msg]}]
-                 (send-message (str "echo: " msg))))
+    (subscribe "echo-message-events"
+               chat-message-events
+               (fn echo-message [{:keys [send-chat-message payload]}]
+                 (send-chat-message (str "echo: " payload))))
 
-    (subscribe chat-message-events chat-message-parser)
-    (subscribe status-job-events   status-jenkins-job)
-    (subscribe package-job-events  package-jenkins-job)
-    ;; (subscribe list-jobs-events    list-jenkins-jobs)
+    ;; (subscribe "chat-message-parser" chat-message-events chat-message-parser)
+    ;; (subscribe "status-jenkins-job"  status-job-events   status-jenkins-job)
+    ;; (subscribe "package-jenkins-job" package-job-events  package-jenkins-job)
+
     ))
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -159,5 +143,4 @@
 (plugin/register-plugin
   {:id "jenkins"
    :regex jenkins-regex
-   :function #(do nil)
-   :init (init-bot init-jenkins-bot)})
+   :init init-jenkins-bot})

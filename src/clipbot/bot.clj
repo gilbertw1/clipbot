@@ -1,78 +1,62 @@
 (ns clipbot.bot
   (:require
-   [rx.lang.clojure.core :as rx])
+   [disposables.core :refer [merge-disposable new-disposable*]]
+   [rx.lang.clojure.core :as rx]
+   [clipbot.types :refer :all])
   (:import
-   [rx Subscription]
-   [rx.subjects Subject]
-   [rx.subscriptions Subscriptions CompositeSubscription]))
+   [rx.subscriptions CompositeSubscription]))
 
-(defrecord Bot
-    [id
-     conn-conf
-     ^Subscription conn
-     plugins
-     ^Subject subject
-     ^Subscription subscription
-     handler]
+;; Transforms a message category from :chat to the one of
+;; the plugin
+(defn- message-for-plugin? [regex category-name]
+  (fn -message-for-plugin? [{:keys [category type payload] :as msg}]
+    (or
+     (and (= category :chat)
+          (= type :receive-message)
+          (re-seq regex payload))
+     (= category category-name))))
 
-  Subscription
-  (unsubscribe [_]
-    (println "Calling unsubscribe on bot" id)
-    (.unsubscribe subscription)
-    (.unsubscribe conn))
-  (isUnsubscribed [_]
-    (and (.isUnsubscribed conn)
-         (.isUnsubscribed subscription))))
+;; Inner subscribe function that is used in the init function
+;; of every plugin
+(defn- plugin-subscribe [bot-subscription plugin-id]
+  (fn -plugin-subscribe [desc & args]
+    (let [subscription (apply rx/subscribe args)]
+      (swap! bot-subscription conj
+             (new-disposable* (str "Plugin " plugin-id " (" desc ")")
+                              #(.unsubscribe subscription))))))
 
-(defn- get-handlers [plugin]
-  (if-let [handlers (:handlers plugin)]
-    handlers
-    [plugin]))
-
-;; In here, I would prefer to have a function in the plugin that receives
-;; a filtered observable (by the regex), and returns a list of
-;; disposables, this disposables are managed by the Bot record
-(defn- create-handler [plugins]
-  (let [handlers (->> plugins (map get-handlers) flatten)]
-    (fn [responder {:keys [user msg]}]
-      (doseq [{:keys [regex function]} handlers]
-        (if (re-seq regex msg)
-          ;; this makes the responder asynchronous in nature
-          ;; this is quite interesting indeed
-          (future
-            (function responder user msg)))))))
-
-(defn- filter-messages-by-regex [regex]
-  (fn [{:keys [msg]}]
-    (not (nil? (re-seq regex msg)))))
-
-(defn- modify-category-from-chat-msg [regex category-name]
-  (fn [{:keys [category type msg] :as ev}]
-    (if (and (= category :chat)
-             (= type :receive-message)
-             (re-seq regex msg))
-      (assoc ev :category category-name)
-      ev)))
-
-(defn- create-subscription [subject plugins]
-  (let [bot-subscription (CompositeSubscription.)]
+;; Creates the bot disposable, by calling the init function
+;; with the subscribe function and the observable you would
+;; like to subscribe to.
+(defn- create-subscription-disposable [subject plugins]
+  (let [bot-subscription (atom [])]
     (doseq [{:keys [regex id init]} plugins
             :let [id-kw (keyword id)
                   observable (->> subject
-                                  (rx/map (modify-category-from-chat-msg regex id-kw))
-                                  (rx/filter #(= (:category %) id-kw)))]]
+                                  (rx/filter (message-for-plugin? regex id-kw)))]]
       (when init
-        (let [subscription (init observable)]
-          (.add bot-subscription subscription))))
-    bot-subscription))
+        (init (plugin-subscribe bot-subscription id)
+              observable)))
+
+    (apply merge-disposable @bot-subscription)))
 
 ;;
-(defn create [{:keys [id connection plugins]} subject available-plugins]
-  (let [plugin-list (doall (map #(get available-plugins %) plugins))]
-    (Bot. id
-          connection
-          nil
-          plugin-list
-          subject
-          (create-subscription subject plugin-list)
-          (create-handler plugin-list))))
+;; Creates a new bot
+;; Arguments:
+;;   - bot-config: A map with the bot metadata
+;;     + id: the name of the bot
+;;     + plugins: the name of the plugins to load from available plugins
+;;
+;;   - subject: The centralized Rx Subject (event bus)
+;;   - available-plugins: name of all the available plugins
+;;
+;; PENDING: a logger
+;;
+(defn new-bot [{:keys [id plugins] :as bot-config}
+              subject
+              available-plugins]
+  (let [plugin-list (mapv #(get available-plugins %)
+                          plugins)]
+
+    (create-subscription-disposable subject
+                                    plugin-list)))
