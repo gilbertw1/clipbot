@@ -1,91 +1,30 @@
 (ns clipbot.chat
-  (:require [clojure.string :as str])
+  (:require
+   [clojure.string :as str]
+   [disposables.core :refer [merge-disposable]]
+   [rx.lang.clojure.core :as rx]
+   [rx.lang.clojure.interop :refer [action*]]
+   [disposables.core :refer [IDisposable]]
+   [clipbot.bot :as bot]
+   [clipbot.chat.hipchat :refer [connect-hipchat]])
   (:import
-   [org.jivesoftware.smack ConnectionConfiguration XMPPConnection XMPPException PacketListener]
-   [org.jivesoftware.smack.packet Message Presence Presence$Type]
-   [org.jivesoftware.smackx.muc MultiUserChat]))
-
-(defprotocol Chat-Connection
-  (send-message [this channel msg])
-  (join [this channel])
-  (list-channels [this])
-  (quit [this]))
-
-(declare send-hipchat-message)
-(declare join-hipchat-room)
-
-(defrecord HipChat-Connection [conn channels username handler]
-  Chat-Connection
-    (send-message [this channel-id msg] (send-hipchat-message conn (get channels channel-id) msg))
-    (join [this channel] (join-hipchat-room conn channel handler))
-    (list-channels [this] channels)
-    (quit [this] (println "Hipchat Quit Not Implemented!")))
-
-;; HipChat
-
-(defn- message->map [#^Message m]
-  (try
-    {:msg (.getBody m)
-     :user (-> m (.getFrom) (str/split #"/") second)}
-    (catch Exception e (println e) {})))
-
-(defn- with-message-map [handler]
-  (fn [muc packet]
-    (let [message (message->map #^Message packet)]
-      (try
-       (handler muc message)
-       (catch Exception e (println e))))))
-
-(defn- wrap-handler [handler]
-  (fn [muc message]
-    (let [respond #(.sendMessage muc %)]
-      (handler respond message))))
-
-(defn- packet-listener [conn processor]
-  (reify PacketListener
-    (processPacket [_ packet]
-      (processor conn packet))))
-
-(defn- join-hipchat-room [conn room handler]  
-  (let [{:keys [id nick]} room        
-        muc (MultiUserChat. conn (str id "@conf.hipchat.com"))]
-    (println "Joining room: " id " with nick: " nick)
-    (.join muc nick)
-    (.addMessageListener muc (packet-listener muc (with-message-map (wrap-handler handler))))
-    (assoc room :conn muc)))
-
-(defn- initialize-xmpp-connection [conn user pass]
-  (.connect conn)
-  (try
-    (.login conn user pass "bot")
-    (catch XMPPException e
-      (throw (Exception. (str "Failed login with bot credentials for user: " user)))))
-  (.sendPacket conn (Presence. Presence$Type/available)))
-
-(defn- send-hipchat-message [conn channel msg]
-  (-> channel :conn (.sendMessage msg)))
-
-(defn- connect-hipchat [{:keys [user pass rooms]} handler]
-  (let [conn (XMPPConnection. (ConnectionConfiguration. "chat.hipchat.com" 5222))]
-    (initialize-xmpp-connection conn user pass)
-    (let [connected-channels (map #(join-hipchat-room conn % handler) rooms)]
-      (HipChat-Connection. conn (group-by :id connected-channels) user handler))))
-
-
-;; IRC
-
-(defn- connect-irc [conf handler]
-  (throw (Exception. "IRC chat not implemented.")))
-
+   [rx Subscription]
+   [rx.subscriptions Subscriptions CompositeSubscription]))
 
 ;; Public
 
-(defn connect [{:keys [type conf]} handler]
-  (condp = type
-    "hipchat" (connect-hipchat conf handler)
-    "irc" (connect-irc conf handler)
-    :else (throw (Exception. "Unknown chat type"))))
+(defn connect [bot-conf subject]
+  (let [{:keys [type conf]} (:connection bot-conf)]
+    (println "Connecting Bot: " bot-conf)
+    (condp = type
+      "hipchat" (connect-hipchat conf subject)
+      :else (throw (Exception. "Unknown chat type")))))
 
-(defn connect-bot [bot]
-  (println "Connecting Bot: " bot)
-  (assoc bot :conn (connect (:conn-conf bot) (:handler bot))))
+(defn init-chat [bot-configs plugins subject]
+  (let [bot-disposables        (mapv #(bot/new-bot % subject plugins) bot-configs)
+        ;; ^ Setups all different subscriptions to Rx streams
+        connection-disposables (mapv #(connect % subject) bot-configs)
+        ;; ^ Setups all connections to Chat resources (socket, etc.)
+        ]
+    (apply merge-disposable
+           (concat connection-disposables bot-disposables))))
