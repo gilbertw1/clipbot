@@ -1,4 +1,4 @@
-clipbot
+crackpot
 =======
 
-A simple extensible hipchat bot written in clojure
+A simple extensible irc/hipchat/slack bot written in clojure
